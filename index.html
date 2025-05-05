@@ -127,10 +127,12 @@
             position: absolute;
             width: 60px;
             height: 40px;
-            background-color: #FF4500;
-            border-radius: 5px;
             z-index: 2;
             left: 10px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-image: url('images/lawnmower.svg');
         }
         
         .lawnmower.active {
@@ -301,7 +303,8 @@ function createLawnmower(row) {
     const lawnmower = {
         row: row,
         x: 10,
-        active: true
+        active: true, // 初始状态为活跃
+        moving: false
     };
     
     const lawnmowerElement = document.createElement('div');
@@ -312,6 +315,8 @@ function createLawnmower(row) {
     
     lawnmower.element = lawnmowerElement;
     lawnmowers.push(lawnmower);
+    
+    console.log('创建小推车，行号:', row);
 }
 
 // 铲子选择逻辑
@@ -549,6 +554,7 @@ function gameLoop() {
                 zombie.x <= lawnmower.x + 60 && zombie.x + 60 >= lawnmower.x) {
                 // 激活小推车
                 activateLawnmower(lawnmower);
+                console.log('小推车被激活！');
             }
         });
     });
@@ -556,7 +562,7 @@ function gameLoop() {
     // 移动小推车
     lawnmowers.forEach((lawnmower, lmIndex) => {
         if (lawnmower.moving) {
-            lawnmower.x += 5;
+            lawnmower.x += 10; // 增加移动速度
             lawnmower.element.style.left = lawnmower.x + 'px';
             
             // 检查是否出界
@@ -666,10 +672,25 @@ function gameLoop() {
 }
 
 // 激活小推车
-function activateLawnmower(lawnmower) {
-    if (!lawnmower.moving) {
+function activateLawnmower(rowOrLawnmower) {
+    // 确定是传入了行号还是小推车对象
+    let lawnmower;
+    if (typeof rowOrLawnmower === 'number') {
+        // 如果传入的是行号，找到对应行的小推车
+        lawnmower = lawnmowers.find(lm => lm.row === rowOrLawnmower && lm.active);
+        if (!lawnmower) return; // 如果没找到活跃的小推车，直接返回
+    } else {
+        // 如果传入的是小推车对象，直接使用
+        lawnmower = rowOrLawnmower;
+    }
+    
+    // 确保小推车没有在移动中
+    if (lawnmower.active && !lawnmower.moving) {
         lawnmower.moving = true;
         lawnmower.active = false;
+        
+        // 添加active类以触发动画
+        lawnmower.element.classList.add('active');
         
         // 检查并清除同一行的所有僵尸（从后向前遍历以避免索引问题）
         for (let i = zombies.length - 1; i >= 0; i--) {
@@ -678,6 +699,12 @@ function activateLawnmower(lawnmower) {
                 zombies.splice(i, 1);
             }
         }
+        
+        console.log('小推车已激活，行号:', lawnmower.row);
+        
+        // 播放音效（可选）
+        // const sound = new Audio('sounds/lawnmower.mp3');
+        // sound.play();
     }
 }
 
@@ -920,9 +947,12 @@ function gameLoop() {
             zombie.lastMove = now;
             
             // 检查僵尸是否到达小推车
-            if (zombie.x <= 60 && !lawnmowers[zombie.row].used) {
-                activateLawnmower(zombie.row);
-                return;
+            if (zombie.x <= 60) {
+                const lawnmower = lawnmowers.find(lm => lm.row === zombie.row && lm.active);
+                if (lawnmower) {
+                    activateLawnmower(zombie.row);
+                    return;
+                }
             }
             
             // 检查僵尸是否到达房子
@@ -1098,12 +1128,20 @@ function showMessage(text) {
 
 // 结束游戏
 function endGame(win) {
+    if (gameOver) return; // 防止多次调用
+    
     gameOver = true;
     clearInterval(gameInterval);
     clearInterval(zombieInterval);
     clearInterval(sunInterval);
     
-    showMessage(win ? '胜利！您成功守护了花园！' : '游戏结束！僵尸吃掉了您的脑子！');
+    // 直接显示游戏结束消息，不使用自动消失的showMessage函数
+    gameMessage.textContent = win ? '胜利！您成功守护了花园！' : '游戏结束！僵尸吃掉了您的脑子！';
+    gameMessage.style.display = 'block';
+    gameMessage.style.zIndex = '100'; // 确保消息显示在最上层
+    
+    console.log('游戏结束:', win ? '胜利' : '失败');
+    // 游戏结束时消息保持显示，不会自动消失
 }
 
 // 初始化游戏

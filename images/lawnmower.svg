@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60">
+  <!-- 小推车主体 -->
+  <rect x="20" y="30" width="60" height="20" rx="5" fill="#4a4a4a" />
+  
+  <!-- 轮子 -->
+  <circle cx="25" cy="50" r="10" fill="#222" />
+  <circle cx="75" cy="50" r="10" fill="#222" />
+  
+  <!-- 把手 -->
+  <rect x="10" y="25" width="10" height="5" rx="2" fill="#8B4513" />
+  
+  <!-- 刀片 -->
+  <path d="M80,30 L95,20 L95,40 L80,30" fill="#aaa" />
+  
+  <!-- 轮子内部 -->
+  <circle cx="25" cy="50" r="4" fill="#777" />
+  <circle cx="75" cy="50" r="4" fill="#777" />
+  
+  <!-- 机身细节 -->
+  <rect x="30" y="25" width="40" height="5" rx="2" fill="#666" />
+</svg>
