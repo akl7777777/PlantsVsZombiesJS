@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>植物大战僵尸</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #87CEEB;
+            font-family: Arial, sans-serif;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            border: 4px solid #8B4513;
+            overflow: hidden;
+            background-color: #8B4513;
+        }
+        
+        #lawn {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            background-color: #7CFC00;
+        }
+        
+        .grid-cell {
+            position: absolute;
+            width: 88px;
+            height: 100px;
+            border: 1px dotted #4a752c;
+            background-color: #8BC34A;
+            cursor: pointer;
+        }
+        
+        #controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 100px;
+            background-color: #A0522D;
+            padding: 0 20px;
+        }
+        
+        #sun-counter {
+            font-size: 32px;
+            color: white;
+            font-weight: bold;
+        }
+        
+        #plant-selector {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .plant-card {
+            width: 70px;
+            height: 70px;
+            background-color: #8B4513;
+            border-radius: 10%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            margin-right: 20px;
+            border: 2px solid #5d2906;
+        }
+        
+        #shovel-container {
+            width: 70px;
+            height: 70px;
+            background-color: #8B4513;
+            border-radius: 10%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            margin-right: 20px;
+            border: 2px solid #5d2906;
+        }
+        
+        #shovel-container.selected {
+            border: 3px solid red;
+            box-shadow: 0 0 10px yellow;
+        }
+        
+        #shovel-container img {
+            width: 55px;
+            height: 55px;
+            object-fit: contain;
+        }
+        
+        .plant-card.cooldown {
+            filter: grayscale(100%);
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .cooldown-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            border-radius: 10%;
+        }
+        
+        .lawnmower {
+            position: absolute;
+            width: 60px;
+            height: 40px;
+            background-color: #FF4500;
+            border-radius: 5px;
+            z-index: 2;
+            left: 10px;
+        }
+        
+        .lawnmower.active {
+            animation: mow 1s linear forwards;
+        }
+        
+        @keyframes mow {
+            from {
+                left: 10px;
+            }
+            to {
+                left: 800px;
+            }
+        }
+    /* 添加游戏元素样式 */
+    .plant {
+        position: absolute;
+        width: 60px;
+        height: 60px;
+        margin-left: -30px;
+        margin-top: -30px;
+        z-index: 1;
+    }
+    
+    .zombie {
+        position: absolute;
+        width: 60px;
+        height: 80px;
+        z-index: 2;
+    }
+    
+    .projectile {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background-color: #32CD32;
+        border-radius: 50%;
+        margin-left: -10px;
+        margin-top: -10px;
+        z-index: 1;
+    }
+    
+    .sun {
+        position: absolute;
+        width: 50px;
+        height: 50px;
+        background-color: #FFD700;
+        border-radius: 50%;
+        margin-left: -25px;
+        margin-top: -25px;
+        cursor: pointer;
+        z-index: 10;
+        pointer-events: auto;
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+    
+    #game-message {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        font-size: 24px;
+        z-index: 10;
+        display: none;
+    }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="lawn"></div>
+        <div id="controls">
+            <div id="sun-counter">Sun: 50</div>
+            <div style="display: flex; align-items: center;">
+                <div id="shovel-container">
+                    <img src="images/shovel.svg" alt="铲子">
+                </div>
+                <div id="plant-selector">
+                    <div class="plant-card" data-plant="sunflower" data-cost="50" data-cooldown="7500">
+                        <img src="images/sunflower.svg" alt="向日葵">
+                        <div class="plant-cost">50</div>
+                    </div>
+                    <div class="plant-card" data-plant="peashooter" data-cost="100" data-cooldown="7500">
+                        <img src="images/peashooter.svg" alt="豌豆射手">
+                        <div class="plant-cost">100</div>
+                    </div>
+                    <div class="plant-card" data-plant="wallnut" data-cost="50" data-cooldown="30000">
+                        <img src="images/wallnut.svg" alt="坚果墙">
+                        <div class="plant-cost">50</div>
+                    </div>
+                    <div class="plant-card" data-plant="repeater" data-cost="200" data-cooldown="7500">
+                        <img src="images/repeater.svg" alt="双发射手">
+                        <div class="plant-cost">200</div>
+                    </div>
+                    <div class="plant-card" data-plant="snowpea" data-cost="175" data-cooldown="7500">
+                        <img src="images/snowpea.svg" alt="寒冰射手">
+                        <div class="plant-cost">175</div>
+                    </div>
+                    <div class="plant-card" data-plant="cherrybomb" data-cost="150" data-cooldown="50000">
+                        <img src="images/cherrybomb.svg" alt="樱桃炸弹">
+                        <div class="plant-cost">150</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="game-message"></div>
+    </div>
+
+<script>
+// 游戏常量
+const ROWS = 5;
+const COLS = 9;
+const CELL_WIDTH = 800 / COLS;
+const CELL_HEIGHT = 500 / ROWS;
+
+// 游戏变量
+let selectedPlant = null;
+let sunCount = 50;
+let zombies = [];
+let plants = [];
+let projectiles = [];
+let suns = [];
+let gameInterval;
+let zombieInterval;
+let sunInterval;
+let gameOver = false;
+let shovelSelected = false;
+let lawnmowers = [];
+let cooldowns = {};
+
+// DOM 元素
+const lawn = document.getElementById('lawn');
+const sunCounter = document.getElementById('sun-counter');
+const plantCards = document.querySelectorAll('.plant-card');
+const gameMessage = document.getElementById('game-message');
+const shovel = document.getElementById('shovel-container');
+
+// 创建游戏网格
+function createGrid() {
+    for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLS; col++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.style.left = (col * CELL_WIDTH) + 'px';
+            cell.style.top = (row * CELL_HEIGHT) + 'px';
+            cell.style.width = CELL_WIDTH + 'px';
+            cell.style.height = CELL_HEIGHT + 'px';
+            cell.dataset.row = row;
+            cell.dataset.col = col;
+            cell.addEventListener('click', () => placePlant(row, col));
+            lawn.appendChild(cell);
+        }
+    }
+    
+    // 创建小推车
+    for (let row = 0; row < ROWS; row++) {
+        createLawnmower(row);
+    }
+}
+
+// 创建小推车
+function createLawnmower(row) {
+    const lawnmower = {
+        row: row,
+        x: 10,
+        active: true
+    };
+    
+    const lawnmowerElement = document.createElement('div');
+    lawnmowerElement.className = 'lawnmower';
+    lawnmowerElement.style.left = lawnmower.x + 'px';
+    lawnmowerElement.style.top = (row * CELL_HEIGHT + CELL_HEIGHT/2 - 20) + 'px';
+    lawn.appendChild(lawnmowerElement);
+    
+    lawnmower.element = lawnmowerElement;
+    lawnmowers.push(lawnmower);
+}
+
+// 铲子选择逻辑
+shovel.addEventListener('click', () => {
+    shovelSelected = !shovelSelected;
+    selectedPlant = null;
+    
+    if (shovelSelected) {
+        shovel.classList.add('selected');
+        plantCards.forEach(card => card.classList.remove('selected'));
+    } else {
+        shovel.classList.remove('selected');
+    }
+});
+
+// 显示游戏消息
+function showMessage(message) {
+    gameMessage.textContent = message;
+    gameMessage.style.display = 'block';
+    
+    setTimeout(() => {
+        gameMessage.style.display = 'none';
+    }, 2000);
+}
+
+// 植物选择逻辑
+plantCards.forEach(card => {
+    card.addEventListener('click', () => {
+        const plant = card.dataset.plant;
+        const cost = parseInt(card.dataset.cost);
+        
+        // 检查冷却时间
+        if (cooldowns[plant] && Date.now() < cooldowns[plant]) {
+            showMessage('植物冷却中!');
+            return;
+        }
+        
+        if (sunCount >= cost) {
+            selectedPlant = plant;
+            shovelSelected = false;
+            plantCards.forEach(c => c.classList.remove('selected'));
+            shovel.classList.remove('selected');
+            card.classList.add('selected');
+            console.log('已选择植物:', selectedPlant); // 添加调试信息
+        } else {
+            showMessage('阳光不足!');
+        }
+    });
+});
+
+// 放置植物
+function placePlant(row, col) {
+    if (gameOver) return;
+    
+    console.log('尝试放置植物，行:', row, '列:', col, '选中植物:', selectedPlant);
+    
+    // 检查该位置是否已有植物
+    const existingPlantIndex = plants.findIndex(p => p.row === row && p.col === col);
+    const existingPlant = existingPlantIndex !== -1 ? plants[existingPlantIndex] : null;
+    
+    // 如果选择了铲子且该位置有植物
+    if (shovelSelected && existingPlant) {
+        // 移除植物
+        existingPlant.element.remove();
+        plants.splice(existingPlantIndex, 1);
+        shovelSelected = false;
+        shovel.classList.remove('selected');
+        return;
+    }
+    
+    if (!selectedPlant) {
+        console.log('没有选中植物');
+        return;
+    }
+    
+    if (existingPlant) {
+        showMessage('此位置已有植物!');
+        return;
+    }
+    
+    // 获取选中植物的消耗和冷却时间
+    const plantCard = document.querySelector(`.plant-card[data-plant="${selectedPlant}"]`);
+    const cost = parseInt(plantCard.dataset.cost);
+    const cooldownTime = parseInt(plantCard.dataset.cooldown);
+    
+    console.log('植物消耗:', cost, '当前阳光:', sunCount);
+    
+    if (sunCount >= cost) {
+        // 扣减阳光
+        sunCount -= cost;
+        updateSunCounter();
+        
+        // 设置冷却时间
+        cooldowns[selectedPlant] = Date.now() + cooldownTime;
+        showCooldown(plantCard, cooldownTime);
+        
+        // 创建植物对象
+        const plant = {
+            type: selectedPlant,
+            row: row,
+            col: col,
+            health: getPlantHealth(selectedPlant),
+            lastShot: Date.now() - 1000 // 设置初始值以便立即行动
+        };
+        
+        plants.push(plant);
+        
+        // 创建植物元素
+        const plantElement = document.createElement('div');
+        plantElement.className = 'plant';
+        plantElement.style.left = (col * CELL_WIDTH + CELL_WIDTH/2) + 'px';
+        plantElement.style.top = (row * CELL_HEIGHT + CELL_HEIGHT/2) + 'px';
+        
+        // 使用图片而不是颜色
+        const img = document.createElement('img');
+        img.src = `images/${selectedPlant}.svg`;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        plantElement.appendChild(img);
+        
+        lawn.appendChild(plantElement);
+        plant.element = plantElement;
+        
+        console.log('成功种植植物:', selectedPlant);
+        
+        // 重置选择
+        selectedPlant = null;
+        plantCards.forEach(c => c.classList.remove('selected'));
+    } else {
+        showMessage('阳光不足!');
+    }
+}
+
+// 显示冷却时间
+function showCooldown(plantCard, cooldownTime) {
+    // 添加冷却样式
+    plantCard.classList.add('cooldown');
+    
+    // 创建冷却覆盖层
+    const cooldownElement = document.createElement('div');
+    cooldownElement.className = 'cooldown-overlay';
+    
+    plantCard.appendChild(cooldownElement);
+    
+    // 更新冷却显示
+    const startTime = Date.now();
+    const endTime = startTime + cooldownTime;
+    
+    const updateCooldown = () => {
+        const now = Date.now();
+        const remaining = Math.max(0, endTime - now);
+        
+        if (remaining > 0) {
+            const percent = (remaining / cooldownTime) * 100;
+            cooldownElement.textContent = Math.ceil(remaining / 1000) + 's';
+            requestAnimationFrame(updateCooldown);
+        } else {
+            cooldownElement.remove();
+            plantCard.classList.remove('cooldown');
+        }
+    };
+    
+    updateCooldown();
+}
+
+// 获取植物生命值
+function getPlantHealth(type) {
+    switch (type) {
+        case 'wallnut': return 300;
+        case 'repeater': return 100;
+        case 'snowpea': return 100;
+        default: return 100;
+    }
+}
+
+// 获取植物颜色 (保留以兼容旧代码)
+function getPlantColor(type) {
+    switch (type) {
+        case 'peashooter': return '#32CD32';
+        case 'sunflower': return '#FFD700';
+        case 'wallnut': return '#8B4513';
+        case 'repeater': return '#006400';
+        case 'snowpea': return '#87CEEB';
+        default: return '#00FF00';
+    }
+}
+
+// 游戏循环
+function gameLoop() {
+    const now = Date.now();
+    
+    // 移动僵尸
+    zombies.forEach((zombie, zIndex) => {
+        // 每50毫秒更新一次位置
+        if (now - zombie.lastMove >= 50) {
+            zombie.x -= zombie.speed;
+            zombie.element.style.left = zombie.x + 'px';
+            zombie.lastMove = now;
+            
+            // 检查僵尸是否到达房子
+            if (zombie.x <= 0) {
+                // 检查是否有小推车
+                const lawnmower = lawnmowers.find(lm => lm.row === zombie.row && lm.active);
+                
+                if (lawnmower) {
+                    // 激活小推车
+                    activateLawnmower(lawnmower);
+                } else {
+                    endGame(false);
+                    return;
+                }
+            }
+            
+            // 计算僵尸当前所在列
+            zombie.col = Math.floor(zombie.x / CELL_WIDTH);
+        }
+        
+        // 检查与植物碰撞
+        plants.forEach((plant, pIndex) => {
+            if (plant.col === zombie.col && plant.row === zombie.row) {
+                // 僵尸开始啃食植物
+                plant.health -= 0.1;
+                
+                // 如果植物被摧毁
+                if (plant.health <= 0) {
+                    plant.element.remove();
+                    plants.splice(pIndex, 1);
+                }
+            }
+        });
+        
+        // 检查与小推车碰撞
+        lawnmowers.forEach((lawnmower, lmIndex) => {
+            if (lawnmower.active && lawnmower.row === zombie.row && 
+                zombie.x <= lawnmower.x + 60 && zombie.x + 60 >= lawnmower.x) {
+                // 激活小推车
+                activateLawnmower(lawnmower);
+            }
+        });
+    });
+    
+    // 移动小推车
+    lawnmowers.forEach((lawnmower, lmIndex) => {
+        if (lawnmower.moving) {
+            lawnmower.x += 5;
+            lawnmower.element.style.left = lawnmower.x + 'px';
+            
+            // 检查是否出界
+            if (lawnmower.x > COLS * CELL_WIDTH) {
+                lawnmower.element.remove();
+                lawnmowers.splice(lmIndex, 1);
+            }
+            
+            // 检查是否撞到僵尸（从后向前遍历以避免索引问题）
+            for (let i = zombies.length - 1; i >= 0; i--) {
+                if (zombies[i].row === lawnmower.row && 
+                    zombies[i].x <= lawnmower.x + 60 && zombies[i].x + 60 >= lawnmower.x) {
+                    // 移除僵尸
+                    zombies[i].element.remove();
+                    zombies.splice(i, 1);
+                }
+            }
+        }
+    });
+    
+    // 植物行动
+    plants.forEach((plant, index) => {
+        // 向日葵产生阳光
+        if (plant.type === 'sunflower' && now - plant.lastShot >= 24000) {
+            createSunflowerSun(plant);
+            plant.lastShot = now;
+        }
+        
+        // 豌豆射手射击
+        if ((plant.type === 'peashooter' || plant.type === 'repeater' || plant.type === 'snowpea') && 
+            now - plant.lastShot >= (plant.type === 'repeater' ? 1500 : 2500)) {
+            // 检查同一行是否有僵尸
+            const zombieInRow = zombies.some(z => z.row === plant.row && z.x > plant.col * CELL_WIDTH);
+            
+            if (zombieInRow) {
+                createProjectile(plant);
+                
+                // 双发射手发射两颗子弹
+                if (plant.type === 'repeater') {
+                    setTimeout(() => {
+                        if (plants.includes(plant)) {
+                            createProjectile(plant);
+                        }
+                    }, 250);
+                }
+                
+                plant.lastShot = now;
+            }
+        }
+    });
+    
+    // 移动子弹
+    projectiles.forEach((projectile, pIndex) => {
+        projectile.x += projectile.speed;
+        projectile.element.style.left = projectile.x + 'px';
+        
+        // 检查子弹是否出界
+        if (projectile.x > COLS * CELL_WIDTH) {
+            projectile.element.remove();
+            projectiles.splice(pIndex, 1);
+            return;
+        }
+        
+        // 检查与僵尸碰撞
+        zombies.forEach((zombie, zIndex) => {
+            if (zombie.row === projectile.row && 
+                projectile.x >= zombie.x && 
+                projectile.x <= zombie.x + 60) {
+                
+                // 寒冰射手减速僵尸
+                if (projectile.type === 'snowpea' && !zombie.slowed) {
+                    zombie.speed = zombie.speed / 2;
+                    zombie.slowed = true;
+                    zombie.element.style.backgroundColor = '#ADD8E6';
+                }
+                
+                zombie.health -= 20;
+                
+                // 如果僵尸被杀死
+                if (zombie.health <= 0) {
+                    zombie.element.remove();
+                    zombies.splice(zIndex, 1);
+                }
+                
+                // 移除子弹
+                projectile.element.remove();
+                projectiles.splice(pIndex, 1);
+            }
+        });
+    });
+    
+    // 移动阳光
+    suns.forEach((sun, index) => {
+        if (sun.y < 400) {
+            sun.y += sun.speed;
+            sun.element.style.top = sun.y + 'px';
+        } else {
+            // 阳光一段时间后消失
+            setTimeout(() => {
+                if (suns.includes(sun)) {
+                    sun.element.remove();
+                    suns.splice(suns.indexOf(sun), 1);
+                }
+            }, 5000);
+        }
+    });
+}
+
+// 激活小推车
+function activateLawnmower(lawnmower) {
+    if (!lawnmower.moving) {
+        lawnmower.moving = true;
+        lawnmower.active = false;
+        
+        // 检查并清除同一行的所有僵尸（从后向前遍历以避免索引问题）
+        for (let i = zombies.length - 1; i >= 0; i--) {
+            if (zombies[i].row === lawnmower.row) {
+                zombies[i].element.remove();
+                zombies.splice(i, 1);
+            }
+        }
+    }
+}
+
+// 创建子弹
+function createProjectile(plant) {
+    const projectile = {
+        row: plant.row,
+        col: plant.col,
+        x: (plant.col * CELL_WIDTH) + CELL_WIDTH/2,
+        y: (plant.row * CELL_HEIGHT) + CELL_HEIGHT/2,
+        speed: 5,
+        type: plant.type
+    };
+    
+    const projectileElement = document.createElement('div');
+    projectileElement.className = 'projectile';
+    projectileElement.style.left = projectile.x + 'px';
+    projectileElement.style.top = projectile.y + 'px';
+    
+    // 寒冰射手的子弹是蓝色的
+    if (plant.type === 'snowpea') {
+        projectileElement.style.backgroundColor = '#87CEEB';
+    }
+    
+    lawn.appendChild(projectileElement);
+    projectile.element = projectileElement;
+    projectiles.push(projectile);
+}
+
+// 创建僵尸
+function createZombie() {
+    if (gameOver) return;
+    
+    const row = Math.floor(Math.random() * ROWS);
+    const zombie = {
+        row: row,
+        col: COLS - 1,
+        health: 100,
+        speed: 0.5,
+        lastMove: Date.now(),
+        x: COLS * CELL_WIDTH - 30,
+        slowed: false
+    };
+    
+    // 创建僵尸元素
+    const zombieElement = document.createElement('div');
+    zombieElement.className = 'zombie';
+    zombieElement.style.left = zombie.x + 'px';
+    zombieElement.style.top = (row * CELL_HEIGHT) + (CELL_HEIGHT - 80) / 2 + 'px';
+    
+    // 使用图片
+    const img = document.createElement('img');
+    img.src = 'images/zombie.svg';
+    img.style.width = '100%';
+    img.style.height = '100%';
+    zombieElement.appendChild(img);
+    
+    lawn.appendChild(zombieElement);
+    zombie.element = zombieElement;
+    
+    zombies.push(zombie);
+}
+
+// 创建阳光
+function createSun() {
+    if (gameOver) return;
+    
+    const col = Math.floor(Math.random() * COLS);
+    const sun = {
+        x: col * CELL_WIDTH + CELL_WIDTH/2,
+        y: 0,
+        speed: 1
+    };
+    
+    const sunElement = document.createElement('div');
+    sunElement.className = 'sun';
+    sunElement.style.left = sun.x + 'px';
+    sunElement.style.top = sun.y + 'px';
+    sunElement.style.backgroundImage = "url('images/sun.svg')";
+    sunElement.style.backgroundSize = 'contain';
+    
+    // 确保点击事件正确绑定
+    sunElement.addEventListener('click', function(event) {
+        event.stopPropagation(); // 阻止事件冒泡
+        collectSun(sun);
+    });
+    
+    lawn.appendChild(sunElement);
+    sun.element = sunElement;
+    suns.push(sun);
+    
+    console.log('创建阳光，位置:', sun.x, sun.y);
+}
+
+// 向日葵产生阳光
+function createSunflowerSun(plant) {
+    if (gameOver) return;
+    
+    console.log('向日葵产生阳光');
+    
+    const sun = {
+        x: (plant.col * CELL_WIDTH) + CELL_WIDTH/2,
+        y: (plant.row * CELL_HEIGHT) + CELL_HEIGHT/2,
+        speed: 0
+    };
+    
+    const sunElement = document.createElement('div');
+    sunElement.className = 'sun';
+    sunElement.style.left = sun.x + 'px';
+    sunElement.style.top = sun.y + 'px';
+    sunElement.style.backgroundImage = "url('images/sun.svg')";
+    sunElement.style.backgroundSize = 'contain';
+    
+    // 确保点击事件正确绑定
+    sunElement.addEventListener('click', function(event) {
+        event.stopPropagation(); // 阻止事件冒泡
+        collectSun(sun);
+    });
+    
+    lawn.appendChild(sunElement);
+    sun.element = sunElement;
+    suns.push(sun);
+}
+
+// 收集阳光
+function collectSun(sun) {
+    sunCount += 25;
+    updateSunCounter();
+    
+    // 从数组中移除
+    const index = suns.indexOf(sun);
+    if (index > -1) {
+        suns.splice(index, 1);
+    }
+    
+    // 移除元素
+    sun.element.remove();
+    
+    console.log('收集阳光，当前阳光数量:', sunCount);
+    showMessage('收集阳光 +25');
+}
+
+// 更新阳光计数器
+function updateSunCounter() {
+    sunCounter.textContent = `Sun: ${sunCount}`;
+    console.log('更新阳光计数:', sunCount);
+}
+
+// 创建子弹
+function createProjectile(plant) {
+    const projectileType = plant.type === 'snowpea' ? 'snow' : 'normal';
+    
+    const projectile = {
+        row: plant.row,
+        col: plant.col,
+        x: (plant.col * CELL_WIDTH) + CELL_WIDTH/2,
+        y: (plant.row * CELL_HEIGHT) + CELL_HEIGHT/2,
+        speed: 5,
+        type: projectileType,
+        damage: plant.type === 'repeater' ? 20 : 20
+    };
+    
+    const projectileElement = document.createElement('div');
+    projectileElement.className = 'projectile';
+    projectileElement.style.left = projectile.x + 'px';
+    projectileElement.style.top = projectile.y + 'px';
+    
+    if (projectileType === 'snow') {
+        projectileElement.style.backgroundColor = '#87CEEB';
+    }
+    
+    lawn.appendChild(projectileElement);
+    projectile.element = projectileElement;
+    projectiles.push(projectile);
+}
+
+// 创建樱桃炸弹爆炸
+function createCherryExplosion(plant) {
+    // 爆炸范围：3x3 格子
+    for (let r = plant.row - 1; r <= plant.row + 1; r++) {
+        for (let c = plant.col - 1; c <= plant.col + 1; c++) {
+            if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+                // 检查该范围内是否有僵尸
+                zombies.forEach((zombie, zIndex) => {
+                    const zombieRow = zombie.row;
+                    const zombieCol = Math.floor(zombie.x / CELL_WIDTH);
+                    
+                    if (zombieRow === r && zombieCol === c) {
+                        // 炸弹造成巨大伤害
+                        zombie.health -= 1000;
+                        
+                        // 如果僵尸被杀死
+                        if (zombie.health <= 0) {
+                            zombie.element.remove();
+                            zombies.splice(zIndex, 1);
+                        }
+                    }
+                });
+            }
+        }
+    }
+    
+    // 创建爆炸效果
+    const explosionElement = document.createElement('div');
+    explosionElement.style.position = 'absolute';
+    explosionElement.style.left = (plant.col * CELL_WIDTH) + 'px';
+    explosionElement.style.top = (plant.row * CELL_HEIGHT) + 'px';
+    explosionElement.style.width = (CELL_WIDTH * 3) + 'px';
+    explosionElement.style.height = (CELL_HEIGHT * 3) + 'px';
+    explosionElement.style.backgroundColor = 'rgba(255, 0, 0, 0.5)';
+    explosionElement.style.borderRadius = '50%';
+    explosionElement.style.transform = 'translate(-33%, -33%)';
+    explosionElement.style.zIndex = '5';
+    
+    lawn.appendChild(explosionElement);
+    
+    // 爆炸效果消失
+    setTimeout(() => {
+        explosionElement.remove();
+        
+        // 移除樱桃炸弹植物
+        const plantIndex = plants.indexOf(plant);
+        if (plantIndex !== -1) {
+            plant.element.remove();
+            plants.splice(plantIndex, 1);
+        }
+    }, 1000);
+}
+
+// 游戏循环
+function gameLoop() {
+    const now = Date.now();
+    
+    // 移动僵尸
+    zombies.forEach((zombie, zIndex) => {
+        // 每50毫秒更新一次位置
+        if (now - zombie.lastMove >= (zombie.frozen ? 100 : 50)) {
+            zombie.x -= zombie.speed;
+            zombie.element.style.left = zombie.x + 'px';
+            zombie.lastMove = now;
+            
+            // 检查僵尸是否到达小推车
+            if (zombie.x <= 60 && !lawnmowers[zombie.row].used) {
+                activateLawnmower(zombie.row);
+                return;
+            }
+            
+            // 检查僵尸是否到达房子
+            if (zombie.x <= 0) {
+                // 检查是否有小推车
+                const lawnmower = lawnmowers.find(lm => lm.row === zombie.row && lm.active);
+                
+                if (lawnmower) {
+                    // 激活小推车
+                    activateLawnmower(lawnmower);
+                } else {
+                    // 游戏结束，僵尸吃掉了脑子
+                    endGame(false);
+                    return;
+                }
+            }
+            
+            // 计算僵尸当前所在列
+            zombie.col = Math.floor(zombie.x / CELL_WIDTH);
+        }
+        
+        // 检查与植物碰撞
+        plants.forEach((plant, pIndex) => {
+            if (plant.col === zombie.col && plant.row === zombie.row) {
+                // 僵尸开始啃食植物
+                plant.health -= 0.1;
+                
+                // 如果植物被摧毁
+                if (plant.health <= 0) {
+                    plant.element.remove();
+                    plants.splice(pIndex, 1);
+                }
+            }
+        });
+        
+        // 解冻僵尸
+        if (zombie.frozen && now - zombie.frozenTime >= 5000) {
+            zombie.frozen = false;
+            zombie.element.style.filter = 'none';
+        }
+    });
+    
+    // 植物行动
+    plants.forEach((plant, index) => {
+        // 向日葵产生阳光
+        if (plant.type === 'sunflower' && now - plant.lastShot >= 24000) {
+            createSunflowerSun(plant);
+            plant.lastShot = now;
+        }
+        
+        // 豌豆射手射击
+        if ((plant.type === 'peashooter' || plant.type === 'repeater' || plant.type === 'snowpea') && 
+            now - plant.lastShot >= (plant.type === 'repeater' ? 1500 : 2500)) {
+            // 检查同一行是否有僵尸
+            const zombieInRow = zombies.some(z => z.row === plant.row && z.x > plant.col * CELL_WIDTH);
+            
+            if (zombieInRow) {
+                createProjectile(plant);
+                plant.lastShot = now;
+                
+                // 双发射手连发两颗子弹
+                if (plant.type === 'repeater') {
+                    setTimeout(() => {
+                        createProjectile(plant);
+                    }, 250);
+                }
+            }
+        }
+        
+        // 樱桃炸弹爆炸
+        if (plant.type === 'cherrybomb' && now - plant.lastShot >= 1500) {
+            createCherryExplosion(plant);
+            plant.lastShot = now + 1000000; // 防止重复触发
+        }
+    });
+    
+    // 移动子弹
+    projectiles.forEach((projectile, pIndex) => {
+        projectile.x += projectile.speed;
+        projectile.element.style.left = projectile.x + 'px';
+        
+        // 检查子弹是否出界
+        if (projectile.x > COLS * CELL_WIDTH) {
+            projectile.element.remove();
+            projectiles.splice(pIndex, 1);
+            return;
+        }
+        
+        // 检查与僵尸碰撞
+        zombies.forEach((zombie, zIndex) => {
+            if (zombie.row === projectile.row && 
+                projectile.x >= zombie.x && 
+                projectile.x <= zombie.x + 60) {
+                
+                zombie.health -= projectile.damage;
+                
+                // 寒冰射手的子弹会减速僵尸
+                if (projectile.type === 'snow' && !zombie.frozen) {
+                    zombie.frozen = true;
+                    zombie.frozenTime = Date.now();
+                    zombie.element.style.filter = 'hue-rotate(180deg) brightness(1.5)';
+                }
+                
+                // 如果僵尸被杀死
+                if (zombie.health <= 0) {
+                    zombie.element.remove();
+                    zombies.splice(zIndex, 1);
+                }
+                
+                // 移除子弹
+                projectile.element.remove();
+                projectiles.splice(pIndex, 1);
+            }
+        });
+    });
+    
+    // 移动阳光
+    suns.forEach((sun, index) => {
+        if (sun.y < 400) {
+            sun.y += sun.speed;
+            sun.element.style.top = sun.y + 'px';
+        } else {
+            // 阳光一段时间后消失
+            setTimeout(() => {
+                if (suns.includes(sun)) {
+                    sun.element.remove();
+                    suns.splice(suns.indexOf(sun), 1);
+                }
+            }, 5000);
+        }
+    });
+}
+
+// 从向日葵创建阳光
+function createSunflowerSun(plant) {
+    const sun = {
+        x: plant.col * CELL_WIDTH + CELL_WIDTH/2,
+        y: plant.row * CELL_HEIGHT + CELL_HEIGHT/2,
+        speed: 0
+    };
+    
+    const sunElement = document.createElement('div');
+    sunElement.className = 'sun';
+    sunElement.style.left = sun.x + 'px';
+    sunElement.style.top = sun.y + 'px';
+    sunElement.style.backgroundImage = "url('images/sun.svg')";
+    sunElement.style.backgroundSize = 'contain';
+    
+    sunElement.addEventListener('click', () => collectSun(sun));
+    
+    lawn.appendChild(sunElement);
+    sun.element = sunElement;
+    suns.push(sun);
+    
+    // 阳光一段时间后消失
+    setTimeout(() => {
+        if (suns.includes(sun)) {
+            sun.element.remove();
+            suns.splice(suns.indexOf(sun), 1);
+        }
+    }, 5000);
+}
+
+// 显示游戏消息
+function showMessage(text) {
+    gameMessage.textContent = text;
+    gameMessage.style.display = 'block';
+    
+    setTimeout(() => {
+        gameMessage.style.display = 'none';
+    }, 2000);
+}
+
+// 结束游戏
+function endGame(win) {
+    gameOver = true;
+    clearInterval(gameInterval);
+    clearInterval(zombieInterval);
+    clearInterval(sunInterval);
+    
+    showMessage(win ? '胜利！您成功守护了花园！' : '游戏结束！僵尸吃掉了您的脑子！');
+}
+
+// 初始化游戏
+function init() {
+    createGrid();
+    
+    // 开始游戏循环
+    gameInterval = setInterval(gameLoop, 16);
+    zombieInterval = setInterval(createZombie, 20000); // 降低僵尸生成频率，从10秒改为20秒
+    sunInterval = setInterval(createSun, 10000);
+    
+    // 设置胜利条件（存活3分钟）
+    setTimeout(() => {
+        if (!gameOver) {
+            endGame(true);
+        }
+    }, 180000);
+}
+
+// 页面加载完成后启动游戏
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
